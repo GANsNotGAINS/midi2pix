@@ -28,7 +28,7 @@ class MIDI2PIXConverter():
         for note_rest in note_rest_iterator:
             col = [(0,0,0) for _ in range(self.noteRange)]
             # hoping there are no tied whole notes...
-            scaled_length = int(self.roundFraction(note_rest.duration.quarterLength) * 255)
+            scaled_length = int(self.roundFraction(note_rest.duration.quarterLength) * 255 / self.wholeLength)
             if note_rest.isRest:
                 col[0] = (scaled_length, 0, 0)
             else:
