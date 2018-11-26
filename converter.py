@@ -21,14 +21,15 @@ class MIDI2PIXConverter():
     def buildImage(self, saveImage=True):
         main_score = self.score.parts[0]
         note_rest_iterator = main_score.recurse().notesAndRests
-
         output = []
 
         i = 0
+        print(note_rest_iterator._reprText())
         for note_rest in note_rest_iterator:
             col = [(0,0,0) for _ in range(self.noteRange)]
             # hoping there are no tied whole notes...
             scaled_length = int(self.roundFraction(note_rest.duration.quarterLength) * 255 / self.wholeLength)
+            # print(str(note_rest.getOffsetBySite(note_rest_iterator)))
             if note_rest.isRest:
                 col[0] = (scaled_length, 0, 0)
             else:
