@@ -19,62 +19,62 @@ class MIDI2PIXConverter():
         # 1 means each column is a quarter note, .5 means eight note (following music21 convetion)
         self.column_length = column_length
         # Inverse of the fraction, 2 for eigth notes, 4 for sixteenth ect..
-        self.multiplier = 1/self.column_length
+        self.multiplier = 1 / self.column_length
 
     def buildImage(self, saveImage=True):
         maxDuration = 0
        
         for score in self.score.parts:
+            duration = 0
             note_rest_iterator = score.recurse().notesAndRests
-            a = note_rest_iterator.show('text', addEndTimes=True)
-            # Parse STDOUT
-
-        maxDuration = 1700 * self.multiplier
-
-        output = np.zeros((int(maxDuration), int(self.noteRange), 3), dtype=int)
+            for note in note_rest_iterator:
+                duration += note.duration.quarterLength
+            maxDuration = max(maxDuration, duration)
+        
+        print(maxDuration)
+        maxDuration *=  self.multiplier
+        
+        output = np.zeros((int(maxDuration), int(self.noteRange) + 1, 3), dtype=int)
 
         i = 0
-        # Iterate through both parts
+        # Iterate through all
         # each column is a eigth note
         # use componentStartTime
         # Red, 0/255 if that is being played
-        # Blue 0-255 fraction of a quarter note (255 to hold, 0 to end)
-        # Green 0 - 255 if it's a rest or not
-        # Chords support
-        count = 0
-        score = self.score.parts[0]
-        for note in note_rest_iterator:
-            
-            start = note.getOffsetBySite(note_rest_iterator) * self.multiplier
-            # Useful later for alignment
-            startDiff = start - math.floor(start)
-            start = int(math.floor(start))
-            
-            end =  start + note.duration.quarterLength * self.multiplier
-            # Useful later for alignment
-            endDiff = end - math.floor(end)
-            end = int(math.floor(end))
-            
-            if not note.isRest:
-                index = self.getNoteIndex(note)
-            print(start, end)
-            # Iterate and set notes until the last time step of the dict
-            for i in xrange(start, end - 1):                
-                if note.isRest:
-                    output[i][0] = (0, 0, 255)
-                else:
-                    output[i][index] = (255, 255, 0)
-            # Signal end of note
-            output[end - 1][index] = (255, 0, 0)
-            print(count)
-            count += 1
+        # Green  0/255 based on if note is ending (255 to hold, 0 to end)
+        # Blue 0 - 255 if it's a rest or not. Fractions define which score is resting
+        # TODO what does rest + notes mean in a single column
+        # TODO do we need to differentiate streams
+        # TODO chords
+        # TODO maybe longer range of notes
+        for i in range(len(self.score.parts)):
+            score = self.score.parts[i]
+            start = 0
+            note_rest_iterator = score.recurse().notesAndRests
+            for note in note_rest_iterator:
+                                
+                end =  start + note.duration.quarterLength * self.multiplier
+                end = int(math.floor(end))
+                
+                if not note.isRest:
+                    index = self.getNoteIndex(note) + 1 # rest is index 0
+                # Red and blue are 
+                # Iterate and set notes until the last time step of the dict
+                for i in xrange(start, end - 1):                
+                    if note.isRest:
+                        output[i][0] = (0, 0, 255)
+                    else:
+                        output[i][index] = (255, 255, 0)
+                if not note.isRest:
+                    # Signal end of note
+                    output[end - 1][index] = (255, 0, 0)
+                start = end
+
 
         transpose = np.array(output).transpose(1, 0, 2)
 
-        print(transpose.shape)
-
         if saveImage:
-            imageName = os.path.splitext(self.input_file)[0] + '.png'
+            imageName = 'images/' + os.path.basename(self.input_file).split('.')[0] + '.png'
             imsave(imageName, transpose)
 
         return transpose
@@ -109,6 +109,14 @@ class MIDI2PIXConverter():
 
         return self.lengths[min_delta_index]
 
+import glob
+import sys, traceback
 
-c = MIDI2PIXConverter('song.mxl', 'musicxml')
-c.buildImage()
+files = glob.glob('in/*.mxl')
+for f in files:
+    try:
+        c = MIDI2PIXConverter(f, 'musicxml')
+        c.buildImage()
+    except:
+        print("Failed for " + f)
+        traceback.print_exc(file=sys.stdout)
